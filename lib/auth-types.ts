@@ -7,6 +7,6 @@ export type AuthSession = {
   isAdmin: boolean;
   companyIds: number[];
   companyNames: string[];
+  passwordUpdatedAt: number;
   expiresAt: number;
 };
-

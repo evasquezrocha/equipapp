@@ -65,9 +65,47 @@ export function parseSessionToken(token: string | undefined): AuthSession | null
   }
 }
 
+async function hasPasswordUpdatedAtColumn() {
+  const result = await runQuery<{ has_column: boolean }>(async (request) => {
+    return request.query<{ has_column: boolean }>(`
+      SELECT CASE WHEN COL_LENGTH('dbo.usuarios', 'password_updated_at') IS NULL THEN CAST(0 AS BIT) ELSE CAST(1 AS BIT) END AS has_column
+    `);
+  });
+
+  return Boolean(result.recordset[0]?.has_column);
+}
+
+type SessionValidationRow = {
+  password_updated_at?: Date | null;
+};
+
 export async function getSessionFromCookies() {
   const cookieStore = await cookies();
-  return parseSessionToken(cookieStore.get(SESSION_COOKIE_NAME)?.value);
+  const session = parseSessionToken(cookieStore.get(SESSION_COOKIE_NAME)?.value);
+  if (!session) {
+    return null;
+  }
+
+  const hasPasswordUpdatedAt = await hasPasswordUpdatedAtColumn();
+  if (!hasPasswordUpdatedAt) {
+    return session;
+  }
+
+  const result = await runQuery<SessionValidationRow>(async (request) => {
+    request.input("userId", sql.Int, session.userId);
+    return request.query<SessionValidationRow>(`
+      SELECT u.password_updated_at
+      FROM dbo.usuarios u
+      WHERE u.id = @userId AND u.activo = 1
+    `);
+  });
+
+  const user = result.recordset[0];
+  if (!user?.password_updated_at || new Date(user.password_updated_at).getTime() !== session.passwordUpdatedAt) {
+    return null;
+  }
+
+  return session;
 }
 
 export async function requireSession() {
@@ -86,6 +124,8 @@ type DbUserRow = {
   role_code: string;
   role_name: string;
   puede_ver_todo: boolean;
+  password_updated_at?: Date | null;
+  updated_at: Date;
 };
 
 type DbCompanyRow = {
@@ -95,6 +135,10 @@ type DbCompanyRow = {
 
 export async function authenticateWithPassword(email: string, password: string) {
   const normalizedEmail = email.trim().toLowerCase();
+  const hasPasswordUpdatedAt = await hasPasswordUpdatedAtColumn();
+  const passwordUpdatedAtExpression = hasPasswordUpdatedAt
+    ? "u.password_updated_at"
+    : "u.updated_at";
 
   const userResult = await runQuery<DbUserRow>(async (request) => {
     request.input("email", sql.NVarChar, normalizedEmail);
@@ -106,10 +150,12 @@ export async function authenticateWithPassword(email: string, password: string) 
         u.password_hash,
         r.codigo AS role_code,
         r.nombre AS role_name,
-        r.puede_ver_todo
+        r.puede_ver_todo,
+        ${passwordUpdatedAtExpression} AS password_updated_at,
+        u.updated_at
       FROM dbo.usuarios u
       INNER JOIN dbo.roles r ON r.id = u.rol_id
-      WHERE u.email = @email
+      WHERE u.email = @email AND u.activo = 1
     `);
   });
 
@@ -138,6 +184,8 @@ export async function authenticateWithPassword(email: string, password: string) 
     return null;
   }
 
+  const passwordUpdatedAt = user.password_updated_at ?? user.updated_at;
+
   const session: AuthSession = {
     userId: user.id,
     name: user.nombre,
@@ -147,6 +195,7 @@ export async function authenticateWithPassword(email: string, password: string) 
     isAdmin: user.puede_ver_todo,
     companyIds,
     companyNames,
+    passwordUpdatedAt: new Date(passwordUpdatedAt).getTime(),
     expiresAt: Date.now() + SESSION_TTL_MS,
   };
 

@@ -43,6 +43,26 @@ export function PeopleIcon(props: IconProps) {
   );
 }
 
+export function UserIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <circle cx="12" cy="8" r="3.25" />
+      <path d="M5 20v-1.2A5.8 5.8 0 0 1 10.8 13h2.4A5.8 5.8 0 0 1 19 18.8V20" />
+    </BaseIcon>
+  );
+}
+
+export function KeyIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <circle cx="8.5" cy="15.5" r="2.5" />
+      <path d="M10.2 13.8 20 4" />
+      <path d="M14 6l4 4" />
+      <path d="M12 8l2 2" />
+    </BaseIcon>
+  );
+}
+
 export function DeviceIcon(props: IconProps) {
   return (
     <BaseIcon {...props}>
@@ -81,4 +101,3 @@ export function DocumentIcon(props: IconProps) {
     </BaseIcon>
   );
 }
-

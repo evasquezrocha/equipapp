@@ -8,6 +8,7 @@ IF OBJECT_ID('dbo.mantenimientos', 'U') IS NOT NULL DROP TABLE dbo.mantenimiento
 IF OBJECT_ID('dbo.asignaciones_equipos', 'U') IS NOT NULL DROP TABLE dbo.asignaciones_equipos;
 IF OBJECT_ID('dbo.equipos', 'U') IS NOT NULL DROP TABLE dbo.equipos;
 IF OBJECT_ID('dbo.colaboradores', 'U') IS NOT NULL DROP TABLE dbo.colaboradores;
+IF OBJECT_ID('dbo.password_reset_tokens', 'U') IS NOT NULL DROP TABLE dbo.password_reset_tokens;
 IF OBJECT_ID('dbo.usuario_empresas', 'U') IS NOT NULL DROP TABLE dbo.usuario_empresas;
 IF OBJECT_ID('dbo.usuarios', 'U') IS NOT NULL DROP TABLE dbo.usuarios;
 IF OBJECT_ID('dbo.tipos_equipo', 'U') IS NOT NULL DROP TABLE dbo.tipos_equipo;
@@ -54,12 +55,25 @@ CREATE TABLE dbo.usuarios (
   nombre NVARCHAR(160) NOT NULL,
   email NVARCHAR(160) NOT NULL,
   password_hash NVARCHAR(255) NOT NULL,
+  password_updated_at DATETIME2 NOT NULL CONSTRAINT DF_usuarios_password_updated_at DEFAULT(SYSDATETIME()),
   activo BIT NOT NULL CONSTRAINT DF_usuarios_activo DEFAULT(1),
   ultimo_acceso_at DATETIME2 NULL,
   created_at DATETIME2 NOT NULL CONSTRAINT DF_usuarios_created_at DEFAULT(SYSDATETIME()),
   updated_at DATETIME2 NOT NULL CONSTRAINT DF_usuarios_updated_at DEFAULT(SYSDATETIME()),
   CONSTRAINT UQ_usuarios_email UNIQUE (email),
   CONSTRAINT FK_usuarios_roles FOREIGN KEY (rol_id) REFERENCES dbo.roles(id)
+);
+GO
+
+CREATE TABLE dbo.password_reset_tokens (
+  id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+  usuario_id INT NOT NULL,
+  token_hash NVARCHAR(255) NOT NULL,
+  expires_at DATETIME2 NOT NULL,
+  used_at DATETIME2 NULL,
+  created_at DATETIME2 NOT NULL CONSTRAINT DF_password_reset_tokens_created_at DEFAULT(SYSDATETIME()),
+  CONSTRAINT UQ_password_reset_tokens_token_hash UNIQUE (token_hash),
+  CONSTRAINT FK_password_reset_tokens_usuario FOREIGN KEY (usuario_id) REFERENCES dbo.usuarios(id) ON DELETE CASCADE
 );
 GO
 
@@ -201,6 +215,8 @@ CREATE INDEX IX_asignaciones_empresa ON dbo.asignaciones_equipos(empresa_id);
 CREATE INDEX IX_mantenimientos_empresa ON dbo.mantenimientos(empresa_id);
 CREATE INDEX IX_archivos_empresa ON dbo.archivos_equipo(empresa_id);
 CREATE INDEX IX_auditoria_empresa ON dbo.auditoria_eventos(empresa_id);
+CREATE INDEX IX_password_reset_tokens_usuario ON dbo.password_reset_tokens(usuario_id);
+CREATE INDEX IX_password_reset_tokens_expires_at ON dbo.password_reset_tokens(expires_at);
 GO
 
 INSERT INTO dbo.roles (codigo, nombre, puede_ver_todo)

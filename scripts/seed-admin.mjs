@@ -75,6 +75,13 @@ async function main() {
     throw new Error("No existe el rol admin en dbo.roles.");
   }
 
+  const passwordUpdatedAtResult = await pool
+    .request()
+    .query(`
+      SELECT CASE WHEN COL_LENGTH('dbo.usuarios', 'password_updated_at') IS NULL THEN 0 ELSE 1 END AS has_column
+    `);
+  const hasPasswordUpdatedAt = Boolean(passwordUpdatedAtResult.recordset[0]?.has_column);
+
   const userResult = await pool
     .request()
     .input("email", sql.NVarChar, email.toLowerCase())
@@ -86,6 +93,7 @@ async function main() {
       .input("email", sql.NVarChar, email.toLowerCase())
       .input("name", sql.NVarChar, name)
       .input("passwordHash", sql.NVarChar, hashPassword(password))
+      .input("roleId", sql.Int, roleId)
       .query(`
         UPDATE dbo.usuarios
         SET nombre = @name,
@@ -93,6 +101,7 @@ async function main() {
             rol_id = @roleId,
             activo = 1,
             updated_at = SYSDATETIME()
+            ${hasPasswordUpdatedAt ? ", password_updated_at = SYSDATETIME()" : ""}
         WHERE email = @email
       `);
     console.log(`Usuario administrador actualizado: ${email}`);
@@ -101,11 +110,13 @@ async function main() {
       .request()
       .input("email", sql.NVarChar, email.toLowerCase())
       .input("name", sql.NVarChar, name)
-      .input("passwordHash", sql.NVarChar, hashPassword(password))
-      .input("roleId", sql.Int, roleId)
-      .query(`
-        INSERT INTO dbo.usuarios (rol_id, nombre, email, password_hash, activo)
-        VALUES (@roleId, @name, @email, @passwordHash, 1)
+        .input("passwordHash", sql.NVarChar, hashPassword(password))
+        .input("roleId", sql.Int, roleId)
+        .query(`
+        ${hasPasswordUpdatedAt
+          ? "INSERT INTO dbo.usuarios (rol_id, nombre, email, password_hash, password_updated_at, activo)"
+          : "INSERT INTO dbo.usuarios (rol_id, nombre, email, password_hash, activo)"}
+        VALUES (@roleId, @name, @email, @passwordHash${hasPasswordUpdatedAt ? ", SYSDATETIME()" : ""}, 1)
       `);
     console.log(`Usuario administrador creado: ${email}`);
   }

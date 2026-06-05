@@ -6,14 +6,17 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { AuthSession } from "@/lib/auth-types";
 import { NAV_ITEMS } from "@/lib/navigation";
+import { ChangePasswordDialog } from "@/components/change-password-dialog";
 import {
   AssignmentIcon,
   BuildingIcon,
   DashboardIcon,
   DeviceIcon,
   DocumentIcon,
+  KeyIcon,
   MaintenanceIcon,
   PeopleIcon,
+  UserIcon,
 } from "@/components/nav-icons";
 
 const STORAGE_KEY = "equipapp.sidebar.pinned";
@@ -21,6 +24,7 @@ const STORAGE_KEY = "equipapp.sidebar.pinned";
 const iconMap = {
   dashboard: DashboardIcon,
   building: BuildingIcon,
+  user: UserIcon,
   people: PeopleIcon,
   device: DeviceIcon,
   assignment: AssignmentIcon,
@@ -43,6 +47,8 @@ export function PortalShell({ children, session }: { children: ReactNode; sessio
   });
   const [hovered, setHovered] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, String(pinned));
@@ -51,6 +57,10 @@ export function PortalShell({ children, session }: { children: ReactNode; sessio
   const expanded = pinned || hovered;
   const sidebarWidth = expanded ? 296 : 92;
   const currentLabel = useMemo(() => getLabel(pathname), [pathname]);
+  const visibleNavItems = useMemo(
+    () => NAV_ITEMS.filter((item) => !item.adminOnly || session.isAdmin),
+    [session.isAdmin],
+  );
   const mainStyle = {
     "--sidebar-width": `${sidebarWidth}px`,
   } as CSSProperties;
@@ -96,10 +106,10 @@ export function PortalShell({ children, session }: { children: ReactNode; sessio
           </div>
 
           <nav className="mt-4 space-y-1">
-            {NAV_ITEMS.map((item) => {
+            {visibleNavItems.map((item) => {
               const active =
                 pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
-              const Icon = iconMap[item.icon];
+              const Icon = iconMap[item.icon as keyof typeof iconMap];
 
               return (
                 <Link
@@ -168,10 +178,10 @@ export function PortalShell({ children, session }: { children: ReactNode; sessio
           </button>
         </div>
         <nav className="mt-4 space-y-1">
-          {NAV_ITEMS.map((item) => {
+          {visibleNavItems.map((item) => {
             const active =
               pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
-            const Icon = iconMap[item.icon];
+            const Icon = iconMap[item.icon as keyof typeof iconMap];
 
             return (
               <Link
@@ -199,10 +209,20 @@ export function PortalShell({ children, session }: { children: ReactNode; sessio
         </nav>
         <button
           type="button"
-          onClick={handleLogout}
+          onClick={() => {
+            setMobileOpen(false);
+            setChangePasswordOpen(true);
+          }}
           className="mt-4 w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-semibold text-slate-100"
         >
-          Cerrar sesion
+          Cambiar contraseña
+        </button>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-semibold text-slate-100"
+        >
+          Cerrar sesión
         </button>
       </aside>
 
@@ -234,12 +254,60 @@ export function PortalShell({ children, session }: { children: ReactNode; sessio
             </div>
 
             <div className="hidden items-center gap-3 md:flex">
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
-                {session.name}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setProfileOpen((value) => !value)}
+                  className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-left text-sm text-slate-200 transition hover:border-cyan-300/50 hover:text-white"
+                >
+                  <span className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-slate-900/80 text-cyan-200">
+                    <UserIcon className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <span>
+                    <span className="block font-medium">{session.name}</span>
+                    <span className="block text-xs text-slate-400">
+                      {session.isAdmin ? "Administrador global" : `Acceso a ${session.companyNames.length} empresa(s)`}
+                    </span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    setChangePasswordOpen(true);
+                  }}
+                  className="absolute -right-2 -top-2 grid h-8 w-8 place-items-center rounded-full border border-cyan-300/20 bg-slate-950 text-cyan-200 shadow-lg transition hover:border-cyan-300/50 hover:text-white"
+                  aria-label="Cambiar mi contraseña"
+                >
+                  <KeyIcon className="h-4 w-4" aria-hidden="true" />
+                </button>
+
+                {profileOpen ? (
+                  <div className="absolute right-0 top-[calc(100%+0.75rem)] w-64 rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-[0_20px_50px_-25px_rgba(2,6,23,0.7)]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileOpen(false);
+                        setChangePasswordOpen(true);
+                      }}
+                      className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-white/5 hover:text-white"
+                    >
+                      <span>Cambiar contraseña</span>
+                      <span className="text-xs text-cyan-300">Perfil</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="mt-1 flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-rose-400/10 hover:text-rose-100"
+                    >
+                      <span>Cerrar sesión</span>
+                      <span className="text-xs text-rose-300">Salir</span>
+                    </button>
+                  </div>
+                ) : null}
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
-                {session.isAdmin ? "Administrador global" : `Acceso a ${session.companyNames.length} empresa(s)`}
-              </div>
+
               <button
                 type="button"
                 onClick={() => setPinned((value) => !value)}
@@ -247,19 +315,14 @@ export function PortalShell({ children, session }: { children: ReactNode; sessio
               >
                 {pinned ? "Desfijar" : "Fijar"} menu
               </button>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:border-rose-300/50 hover:text-rose-100"
-              >
-                Salir
-              </button>
             </div>
           </div>
         </header>
 
         <main className="px-4 py-8 md:px-8">{children}</main>
       </div>
+
+      <ChangePasswordDialog open={changePasswordOpen} onClose={() => setChangePasswordOpen(false)} />
     </div>
   );
 }
