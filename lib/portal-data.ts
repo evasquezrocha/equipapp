@@ -17,6 +17,20 @@ export type DashboardAssignment = {
   fecha: string;
 };
 
+export type AssignmentRow = {
+  id: number;
+  equipmentCode: string;
+  equipmentType: string;
+  companyName: string;
+  collaboratorId: number;
+  collaboratorName: string;
+  assignedBy: string;
+  assignedAt: string;
+  returnedAt: string | null;
+  status: string;
+  note: string | null;
+};
+
 export type CompanyRow = {
   id: number;
   name: string;
@@ -71,6 +85,43 @@ export async function loadRecentAssignments(session: AuthSession, top = 5) {
       INNER JOIN dbo.empresas em ON em.id = a.empresa_id
       WHERE ${scope.clause}
       ORDER BY a.fecha_asignacion DESC
+    `);
+  });
+
+  return result.recordset;
+}
+
+export async function loadAssignments(session: AuthSession, collaboratorId?: number | null) {
+  const scope = buildTenantScope(session, "a.empresa_id");
+
+  const result = await runQuery<AssignmentRow>(async (request) => {
+    bindCompanyIds(request, session);
+    if (collaboratorId && Number.isInteger(collaboratorId) && collaboratorId > 0) {
+      request.input("collaboratorId", sql.Int, collaboratorId);
+    }
+
+    return request.query<AssignmentRow>(`
+      SELECT
+        a.id,
+        e.codigo_interno AS equipmentCode,
+        te.nombre AS equipmentType,
+        em.nombre AS companyName,
+        c.id AS collaboratorId,
+        CONCAT(c.nombres, ' ', c.apellidos) AS collaboratorName,
+        u.nombre AS assignedBy,
+        CONVERT(varchar(19), a.fecha_asignacion, 120) AS assignedAt,
+        CONVERT(varchar(19), a.fecha_devolucion, 120) AS returnedAt,
+        a.estado AS status,
+        a.observaciones AS note
+      FROM dbo.asignaciones_equipos a
+      INNER JOIN dbo.equipos e ON e.id = a.equipo_id
+      INNER JOIN dbo.tipos_equipo te ON te.id = e.tipo_equipo_id
+      INNER JOIN dbo.colaboradores c ON c.id = a.colaborador_id
+      INNER JOIN dbo.empresas em ON em.id = a.empresa_id
+      INNER JOIN dbo.usuarios u ON u.id = a.asignado_por_usuario_id
+      WHERE ${scope.clause}
+        ${collaboratorId && Number.isInteger(collaboratorId) && collaboratorId > 0 ? "AND a.colaborador_id = @collaboratorId" : ""}
+      ORDER BY a.fecha_asignacion DESC, a.id DESC
     `);
   });
 

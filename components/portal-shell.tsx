@@ -12,9 +12,7 @@ import {
   BuildingIcon,
   DashboardIcon,
   DeviceIcon,
-  DocumentIcon,
   KeyIcon,
-  MaintenanceIcon,
   PeopleIcon,
   UserIcon,
 } from "@/components/nav-icons";
@@ -28,8 +26,6 @@ const iconMap = {
   people: PeopleIcon,
   device: DeviceIcon,
   assignment: AssignmentIcon,
-  maintenance: MaintenanceIcon,
-  document: DocumentIcon,
 } as const;
 
 function getLabel(pathname: string) {

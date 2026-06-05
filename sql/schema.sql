@@ -116,20 +116,26 @@ CREATE TABLE dbo.equipos (
   marca NVARCHAR(120) NULL,
   modelo NVARCHAR(120) NULL,
   color NVARCHAR(60) NULL,
+  procesador NVARCHAR(120) NULL,
+  ram NVARCHAR(60) NULL,
+  almacenamiento NVARCHAR(120) NULL,
   estado NVARCHAR(40) NOT NULL CONSTRAINT DF_equipos_estado DEFAULT('Disponible'),
   condicion NVARCHAR(40) NOT NULL CONSTRAINT DF_equipos_condicion DEFAULT('Operativo'),
-  propiedad NVARCHAR(20) NOT NULL CONSTRAINT DF_equipos_propiedad DEFAULT('Propio'),
   fecha_compra DATE NULL,
   costo_estimado DECIMAL(18,2) NULL,
   observaciones NVARCHAR(500) NULL,
   created_at DATETIME2 NOT NULL CONSTRAINT DF_equipos_created_at DEFAULT(SYSDATETIME()),
   updated_at DATETIME2 NOT NULL CONSTRAINT DF_equipos_updated_at DEFAULT(SYSDATETIME()),
   CONSTRAINT UQ_equipos_empresa_codigo UNIQUE (empresa_id, codigo_interno),
-  CONSTRAINT UQ_equipos_empresa_serial UNIQUE (empresa_id, serial),
   CONSTRAINT FK_equipos_empresa FOREIGN KEY (empresa_id) REFERENCES dbo.empresas(id),
   CONSTRAINT FK_equipos_tipo FOREIGN KEY (tipo_equipo_id) REFERENCES dbo.tipos_equipo(id),
   CONSTRAINT FK_equipos_colaborador FOREIGN KEY (colaborador_id) REFERENCES dbo.colaboradores(id)
 );
+GO
+
+CREATE UNIQUE INDEX UQ_equipos_empresa_serial
+  ON dbo.equipos (empresa_id, serial)
+  WHERE serial IS NOT NULL;
 GO
 
 CREATE TABLE dbo.asignaciones_equipos (

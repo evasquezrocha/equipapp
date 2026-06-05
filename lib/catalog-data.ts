@@ -16,18 +16,18 @@ import { runQuery } from "@/lib/db";
 import { bindCompanyIds, canAccessCompany, requireCompanyAccess, buildTenantScope } from "@/lib/tenant-scope";
 
 async function resolveTypeId(request: sql.Request, typeName: string) {
-  request.input("typeName", sql.NVarChar, typeName.trim());
+  request.input("catalogTypeName", sql.NVarChar, typeName.trim());
   const result = await request.query<{ id: number }>(`
     DECLARE @tipoId INT;
 
     SELECT @tipoId = id
     FROM dbo.tipos_equipo
-    WHERE nombre = @typeName;
+    WHERE nombre = @catalogTypeName;
 
     IF @tipoId IS NULL
     BEGIN
       INSERT INTO dbo.tipos_equipo (nombre, activo)
-      VALUES (@typeName, 1);
+      VALUES (@catalogTypeName, 1);
       SET @tipoId = CONVERT(INT, SCOPE_IDENTITY());
     END
 
@@ -168,6 +168,34 @@ export async function listCollaborators(session: AuthSession) {
   return result.recordset;
 }
 
+export async function getCollaboratorById(session: AuthSession, collaboratorId: number) {
+  const scope = buildTenantScope(session, "c.empresa_id");
+  const result = await runQuery<CollaboratorCrudRow>(async (request) => {
+    bindCompanyIds(request, session);
+    request.input("id", sql.Int, collaboratorId);
+    return request.query<CollaboratorCrudRow>(`
+      SELECT
+        c.id,
+        c.empresa_id AS companyId,
+        e.nombre AS companyName,
+        c.codigo_colaborador AS code,
+        c.nombres AS firstName,
+        c.apellidos AS lastName,
+        CONCAT(c.nombres, ' ', c.apellidos) AS fullName,
+        c.email,
+        c.cargo,
+        c.telefono AS phone,
+        c.activo AS active,
+        (SELECT COUNT(1) FROM dbo.equipos eq WHERE eq.colaborador_id = c.id) AS equipmentCount
+      FROM dbo.colaboradores c
+      INNER JOIN dbo.empresas e ON e.id = c.empresa_id
+      WHERE ${scope.clause} AND c.activo = 1 AND c.id = @id
+    `);
+  });
+
+  return result.recordset[0] ?? null;
+}
+
 export async function createCollaborator(session: AuthSession, input: CollaboratorInput) {
   requireCompanyAccess(session, input.companyId);
 
@@ -273,14 +301,22 @@ export async function listEquipment(session: AuthSession) {
         e.empresa_id AS companyId,
         em.nombre AS companyName,
         te.nombre AS typeName,
+        (
+          SELECT COUNT(1)
+          FROM dbo.archivos_equipo ae
+          WHERE ae.equipo_id = e.id
+            AND ae.tipo_archivo = 'Imagen'
+        ) AS imageCount,
         e.codigo_interno AS code,
         e.serial,
         e.marca AS brand,
         e.modelo AS model,
         e.color,
+        e.procesador AS processor,
+        e.ram,
+        e.almacenamiento AS storage,
         e.estado AS state,
         e.condicion AS condition,
-        e.propiedad AS ownership,
         e.colaborador_id AS collaboratorId,
         CONCAT(c.nombres, ' ', c.apellidos) AS collaboratorName,
         CONVERT(varchar(10), e.fecha_compra, 23) AS purchaseDate,
@@ -303,15 +339,16 @@ export async function createEquipment(session: AuthSession, input: EquipmentInpu
 
   const result = await runQuery<{ id: number }>(async (request) => {
     request.input("companyId", sql.Int, input.companyId);
-    request.input("typeName", sql.NVarChar, input.typeName.trim());
     request.input("code", sql.NVarChar, input.code.trim());
     request.input("serial", sql.NVarChar, input.serial?.trim() || null);
     request.input("brand", sql.NVarChar, input.brand?.trim() || null);
     request.input("model", sql.NVarChar, input.model?.trim() || null);
     request.input("color", sql.NVarChar, input.color?.trim() || null);
+    request.input("processor", sql.NVarChar, input.processor?.trim() || null);
+    request.input("ram", sql.NVarChar, input.ram?.trim() || null);
+    request.input("storage", sql.NVarChar, input.storage?.trim() || null);
     request.input("state", sql.NVarChar, input.state?.trim() || "Disponible");
     request.input("condition", sql.NVarChar, input.condition?.trim() || "Operativo");
-    request.input("ownership", sql.NVarChar, input.ownership?.trim() || "Propio");
     request.input("collaboratorId", sql.Int, input.collaboratorId ?? null);
     request.input("purchaseDate", sql.Date, input.purchaseDate ? new Date(input.purchaseDate) : null);
     request.input("estimatedCost", sql.Decimal(18, 2), input.estimatedCost ?? null);
@@ -327,12 +364,12 @@ export async function createEquipment(session: AuthSession, input: EquipmentInpu
     return request.query<{ id: number }>(`
       INSERT INTO dbo.equipos (
         empresa_id, tipo_equipo_id, colaborador_id, codigo_interno, serial, marca, modelo, color,
-        estado, condicion, propiedad, fecha_compra, costo_estimado, observaciones
+        procesador, ram, almacenamiento, estado, condicion, fecha_compra, costo_estimado, observaciones
       )
       OUTPUT INSERTED.id AS id
       VALUES (
         @companyId, @typeId, @collaboratorId, @code, @serial, @brand, @model, @color,
-        @state, @condition, @ownership, @purchaseDate, @estimatedCost, @notes
+        @processor, @ram, @storage, @state, @condition, @purchaseDate, @estimatedCost, @notes
       );
     `);
   });
@@ -346,15 +383,16 @@ export async function updateEquipment(session: AuthSession, equipmentId: number,
   await runQuery(async (request) => {
     request.input("id", sql.Int, equipmentId);
     request.input("companyId", sql.Int, input.companyId);
-    request.input("typeName", sql.NVarChar, input.typeName.trim());
     request.input("code", sql.NVarChar, input.code.trim());
     request.input("serial", sql.NVarChar, input.serial?.trim() || null);
     request.input("brand", sql.NVarChar, input.brand?.trim() || null);
     request.input("model", sql.NVarChar, input.model?.trim() || null);
     request.input("color", sql.NVarChar, input.color?.trim() || null);
+    request.input("processor", sql.NVarChar, input.processor?.trim() || null);
+    request.input("ram", sql.NVarChar, input.ram?.trim() || null);
+    request.input("storage", sql.NVarChar, input.storage?.trim() || null);
     request.input("state", sql.NVarChar, input.state?.trim() || "Disponible");
     request.input("condition", sql.NVarChar, input.condition?.trim() || "Operativo");
-    request.input("ownership", sql.NVarChar, input.ownership?.trim() || "Propio");
     request.input("collaboratorId", sql.Int, input.collaboratorId ?? null);
     request.input("purchaseDate", sql.Date, input.purchaseDate ? new Date(input.purchaseDate) : null);
     request.input("estimatedCost", sql.Decimal(18, 2), input.estimatedCost ?? null);
@@ -377,9 +415,11 @@ export async function updateEquipment(session: AuthSession, equipmentId: number,
           marca = @brand,
           modelo = @model,
           color = @color,
+          procesador = @processor,
+          ram = @ram,
+          almacenamiento = @storage,
           estado = @state,
           condicion = @condition,
-          propiedad = @ownership,
           fecha_compra = @purchaseDate,
           costo_estimado = @estimatedCost,
           observaciones = @notes,

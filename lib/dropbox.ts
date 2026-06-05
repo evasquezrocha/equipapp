@@ -85,3 +85,35 @@ export async function ensureCompanyDropboxStructure(companyName: string) {
   await ensureDropboxFolder(`${root}/equipos`);
   await ensureDropboxFolder(`${root}/colaboradores`);
 }
+
+type DropboxUploadResponse = {
+  id: string;
+  name: string;
+  path_display: string;
+  path_lower: string;
+};
+
+export async function uploadDropboxFile(path: string, bytes: ArrayBuffer | Uint8Array | Buffer) {
+  const token = await getDropboxAccessToken();
+  const body = bytes instanceof ArrayBuffer ? bytes : bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const response = await fetch("https://content.dropboxapi.com/2/files/upload", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token.access_token}`,
+      "Content-Type": "application/octet-stream",
+      "Dropbox-API-Arg": JSON.stringify({
+        path,
+        mode: { ".tag": "add" },
+        autorename: true,
+        mute: false,
+      }),
+    },
+    body: body as BodyInit,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Dropbox upload respondió con ${response.status}.`);
+  }
+
+  return (await response.json()) as DropboxUploadResponse;
+}

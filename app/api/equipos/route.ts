@@ -43,9 +43,11 @@ export async function POST(request: Request) {
       brand: body.brand ? String(body.brand) : undefined,
       model: body.model ? String(body.model) : undefined,
       color: body.color ? String(body.color) : undefined,
+      processor: body.processor ? String(body.processor) : undefined,
+      ram: body.ram ? String(body.ram) : undefined,
+      storage: body.storage ? String(body.storage) : undefined,
       state: body.state ? String(body.state) : undefined,
       condition: body.condition ? String(body.condition) : undefined,
-      ownership: body.ownership ? String(body.ownership) : undefined,
       collaboratorId: body.collaboratorId ? Number(body.collaboratorId) : null,
       purchaseDate: body.purchaseDate ? String(body.purchaseDate) : undefined,
       estimatedCost: body.estimatedCost ? Number(body.estimatedCost) : null,
@@ -83,9 +85,11 @@ export async function PATCH(request: Request) {
       brand: body.brand ? String(body.brand) : undefined,
       model: body.model ? String(body.model) : undefined,
       color: body.color ? String(body.color) : undefined,
+      processor: body.processor ? String(body.processor) : undefined,
+      ram: body.ram ? String(body.ram) : undefined,
+      storage: body.storage ? String(body.storage) : undefined,
       state: body.state ? String(body.state) : undefined,
       condition: body.condition ? String(body.condition) : undefined,
-      ownership: body.ownership ? String(body.ownership) : undefined,
       collaboratorId: body.collaboratorId ? Number(body.collaboratorId) : null,
       purchaseDate: body.purchaseDate ? String(body.purchaseDate) : undefined,
       estimatedCost: body.estimatedCost ? Number(body.estimatedCost) : null,
@@ -130,4 +134,3 @@ export async function DELETE(request: Request) {
     return jsonError(message, 500);
   }
 }
-

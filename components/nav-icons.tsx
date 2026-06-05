@@ -63,6 +63,15 @@ export function KeyIcon(props: IconProps) {
   );
 }
 
+export function CameraIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M5 7h3l2-2h4l2 2h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" />
+      <circle cx="12" cy="13" r="3.25" />
+    </BaseIcon>
+  );
+}
+
 export function DeviceIcon(props: IconProps) {
   return (
     <BaseIcon {...props}>
