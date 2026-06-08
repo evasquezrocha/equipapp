@@ -34,3 +34,18 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Required environment variables
+
+This application needs the following environment variables in every deployed environment:
+
+- `SQL_SERVER`
+- `SQL_PORT`
+- `SQL_DATABASE`
+- `SQL_USER`
+- `SQL_PASSWORD`
+- `SQL_ENCRYPT`
+- `SQL_TRUST_CERT`
+- `AUTH_SECRET`
+
+If any of the SQL variables or `AUTH_SECRET` are missing in production, login and password-reset flows will fail.

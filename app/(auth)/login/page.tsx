@@ -23,8 +23,16 @@ export default function LoginPage() {
     });
 
     if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-      setError(payload?.error ?? "No fue posible iniciar sesion.");
+      const raw = await response.text().catch(() => "");
+      let payload: { error?: string } | null = null;
+      if (raw) {
+        try {
+          payload = JSON.parse(raw) as { error?: string };
+        } catch {
+          payload = { error: raw };
+        }
+      }
+      setError(payload?.error ?? "No fue posible iniciar sesión.");
       setLoading(false);
       return;
     }
@@ -62,7 +70,7 @@ export default function LoginPage() {
           <p className="text-sm uppercase tracking-[0.24em] text-cyan-300/80">Ingresar</p>
           <h2 className="mt-2 text-2xl font-semibold text-white">Bienvenido</h2>
           <p className="mt-2 text-sm leading-6 text-slate-400">
-            Usa el correo y la contrasena del usuario creado en SQL Server.
+            Usa el correo y la contraseña del usuario creado en SQL Server.
           </p>
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
@@ -79,7 +87,7 @@ export default function LoginPage() {
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-200">Contrasena</span>
+              <span className="mb-2 block text-sm font-medium text-slate-200">Contraseña</span>
               <input
                 type="password"
                 value={password}
@@ -107,7 +115,7 @@ export default function LoginPage() {
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
             <Link href="/forgot-password" className="font-medium text-cyan-300 transition hover:text-cyan-200">
-              Olvide mi contrasena
+              Olvidé mi contraseña
             </Link>
             <span>Protegido por sesion firmada</span>
           </div>
